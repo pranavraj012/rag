@@ -1,0 +1,13 @@
+streamlit
+langchain
+langchain-community
+chromadb
+transformers
+torch
+torchvision
+sentence-transformers  # for HuggingFaceEmbeddings
+PyPDF2
+python-docx
+python-dotenv
+pandas
+accelerate  # for GPU optimization

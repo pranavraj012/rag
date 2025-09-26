@@ -1,0 +1,54 @@
+STANDARD OPERATING PROCEDURE - QUALITY CONTROL
+
+DOCUMENT ID: QC-001
+VERSION: 2.1
+EFFECTIVE DATE: September 2025
+
+PURPOSE:
+This procedure outlines the quality control process for manufacturing operations to ensure consistent product quality and compliance with industry standards.
+
+SCOPE:
+This procedure applies to all quality control activities in the manufacturing facility including incoming material inspection, in-process testing, and final product verification.
+
+RESPONSIBILITIES:
+- Quality Control Manager: Overall oversight of QC processes
+- QC Technicians: Perform daily inspections and testing
+- Production Supervisors: Ensure compliance with QC requirements
+- Plant Manager: Review and approve quality reports
+
+PROCEDURE:
+
+1. INCOMING MATERIAL INSPECTION
+   1.1 All raw materials must be inspected within 24 hours of receipt
+   1.2 Check packaging for damage or contamination
+   1.3 Verify material certificates and batch numbers
+   1.4 Take representative samples for laboratory testing
+   1.5 Materials failing inspection must be quarantined immediately
+
+2. IN-PROCESS QUALITY CHECKS
+   2.1 Check product dimensions every 2 hours during production
+   2.2 Monitor temperature and pressure parameters continuously
+   2.3 Document all measurements in the quality control log
+   2.4 Stop production if measurements exceed tolerance limits
+   2.5 Notify supervisor immediately of any quality issues
+
+3. FINAL PRODUCT TESTING
+   3.1 Test 100% of critical dimensions on finished products
+   3.2 Perform functionality tests on random sample (1 in 50 units)
+   3.3 Complete visual inspection for defects
+   3.4 Package products only after passing all quality checks
+   3.5 Maintain test records for minimum 5 years
+
+4. NON-CONFORMING PRODUCT HANDLING
+   4.1 Segregate non-conforming products immediately
+   4.2 Fill out Non-Conformance Report (NCR)
+   4.3 Determine root cause and corrective action
+   4.4 Rework or dispose of products per approved procedure
+   4.5 Track effectiveness of corrective actions
+
+RECORDS:
+- Daily Quality Control Logs
+- Non-Conformance Reports
+- Material Certificates
+- Test Results Database
+- Calibration Records

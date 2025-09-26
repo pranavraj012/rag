@@ -1,0 +1,33 @@
+SAFETY PROCEDURES - EQUIPMENT MAINTENANCE
+
+1. GENERAL SAFETY REQUIREMENTS
+   - Always wear appropriate Personal Protective Equipment (PPE)
+   - Hard hat, safety glasses, and steel-toed boots are mandatory
+   - Ensure proper lighting in work areas
+   - Never work alone on high-risk equipment
+
+2. LOCKOUT/TAGOUT PROCEDURES
+   - Turn off equipment at main power source
+   - Lock the power source in the OFF position
+   - Attach lockout tag with your name and date
+   - Test equipment to ensure it cannot be started
+   - Only the person who applied the lock may remove it
+
+3. CHEMICAL HANDLING
+   - Read all Material Safety Data Sheets (MSDS) before handling
+   - Use appropriate ventilation systems
+   - Store chemicals in designated areas only
+   - Wear chemical-resistant gloves when required
+   - Emergency eyewash stations must be accessible within 15 seconds
+
+4. EMERGENCY PROCEDURES
+   - In case of injury, immediately call emergency services (911)
+   - Report all incidents to supervisor within 24 hours
+   - Know the location of first aid kits and emergency exits
+   - Fire extinguishers are located every 75 feet in work areas
+
+5. EQUIPMENT INSPECTION
+   - Daily visual inspection of all equipment before use
+   - Weekly detailed inspection documented in logbook
+   - Any defects must be reported immediately
+   - Faulty equipment must be tagged "OUT OF ORDER"
