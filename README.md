@@ -87,11 +87,12 @@ Models are cached in: `~/.cache/huggingface/`
 ├── document_processor.py  # Document text extraction and chunking
 ├── vector_store.py        # ChromaDB vector database
 ├── query_engine.py        # AI query processing
-├── utils.py              # Utility functions
 ├── requirements.txt      # Python dependencies
-├── .env                  # Configuration file
+├── .env                  # Configuration file (GTX 1650 optimized)
+├── .env.rtx4060          # Configuration for RTX 4060 users
 ├── documents/           # Place your SOP documents here
-└── chroma_db/          # Vector database storage
+├── chroma_db/          # Vector database storage (auto-created)
+└── tests/              # Test files and utilities
 ```
 
 ## ⚙️ Configuration
@@ -108,9 +109,14 @@ EMBEDDING_MODEL=all-MiniLM-L6-v2
 
 ## 🧪 Testing
 
-Run the test script to verify everything works:
+Run the comprehensive test to verify everything works:
 ```bash
-python gpu_test.py
+python tests/test_advanced.py
+```
+
+Or run a basic functionality test:
+```bash
+python tests/final_test.py
 ```
 
 ## 🤝 Contributing

@@ -113,10 +113,25 @@ def main():
     with col1:
         st.header("🤔 Ask Questions")
         
-        # Query input
+        # Query input with advanced capabilities
+        st.markdown("### 🤖 Advanced Query Modes")
+        
+        query_mode = st.selectbox(
+            "Select query type:",
+            ["Standard Q&A", "Step-by-Step Instructions", "Generate New SOP"],
+            help="Choose the type of response you want"
+        )
+        
+        if query_mode == "Standard Q&A":
+            placeholder = "e.g., What are the safety procedures for equipment maintenance?"
+        elif query_mode == "Step-by-Step Instructions":
+            placeholder = "e.g., How to perform lockout tagout procedure step by step?"
+        else:
+            placeholder = "e.g., Create a new SOP for emergency evacuation procedures"
+        
         query = st.text_area(
-            "What would you like to know about your SOPs?",
-            placeholder="e.g., What are the safety procedures for equipment maintenance?",
+            "Enter your query:",
+            placeholder=placeholder,
             height=100
         )
         
@@ -134,12 +149,21 @@ def main():
                         # Generate answer
                         result = query_engine.generate_answer(query, relevant_docs)
                         
-                        # Display answer
-                        st.subheader("📋 Answer")
-                        st.write(result["answer"])
+                        # Display answer with type indicator
+                        answer_type = result.get("answer_type", "standard_qa")
+                        
+                        if answer_type == "step_by_step":
+                            st.subheader("📋 Step-by-Step Instructions")
+                            st.markdown(result["answer"])
+                        elif answer_type == "generate_sop":
+                            st.subheader("📋 Generated SOP")
+                            st.markdown(result["answer"])
+                        else:
+                            st.subheader("📋 Answer")
+                            st.write(result["answer"])
                         
                         # Display confidence and sources
-                        col_conf, col_sources = st.columns(2)
+                        col_conf, col_sources, col_type = st.columns(3)
                         with col_conf:
                             confidence_pct = result.get("confidence", 0) * 100
                             st.metric("Confidence", f"{confidence_pct:.1f}%")
@@ -148,6 +172,14 @@ def main():
                             st.write("**Sources:**")
                             for source in result["sources"]:
                                 st.write(f"• {source}")
+                        
+                        with col_type:
+                            type_icons = {
+                                "standard_qa": "❓ Q&A",
+                                "step_by_step": "📝 Instructions", 
+                                "generate_sop": "📋 New SOP"
+                            }
+                            st.metric("Response Type", type_icons.get(answer_type, "❓ Standard"))
                         
                         # Display relevant excerpts
                         with st.expander("View Relevant Document Excerpts"):
@@ -169,24 +201,32 @@ def main():
         st.metric("Total Documents", info["document_count"])
         st.metric("Collection Name", info["collection_name"])
         
-        # Model status
+        # Advanced Model status
         if query_engine.model_loaded:
-            st.success("✅ Language Model Ready")
+            st.success("✅ Advanced Query Engine Ready")
+            st.info("🚀 Features: Q&A, Step-by-step, SOP Generation")
         else:
-            st.warning("⚠️ Language Model Not Available")
+            st.warning("⚠️ Advanced Query Engine Not Available")
         
         # Quick help
         with st.expander("💡 Tips"):
             st.markdown("""
             **How to use:**
             1. Upload your SOP documents using the sidebar
-            2. Ask specific questions about procedures
-            3. Review the generated answer and source documents
+            2. Select query type (Q&A, Instructions, or Generate SOP)
+            3. Ask questions or request procedures
+            4. Review generated responses and sources
+            
+            **Advanced Features:**
+            - **Q&A Mode**: Standard questions about procedures
+            - **Step-by-Step**: Detailed instruction generation
+            - **SOP Generation**: Create new procedures (Beta)
+            - **Future**: Multimodal support with images
             
             **Best practices:**
-            - Use clear, specific questions
-            - Upload documents in PDF, DOCX, or TXT format
-            - Review the confidence score and sources
+            - Use specific, clear queries
+            - Select appropriate response type
+            - Review confidence scores and sources
             """)
 
 if __name__ == "__main__":

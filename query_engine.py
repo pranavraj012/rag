@@ -6,105 +6,358 @@ from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 from langchain.schema import Document
 
 class QueryEngine:
-    def __init__(self, model_name: str = "google/flan-t5-small"):
+    def __init__(self, model_name: str = "microsoft/DialoGPT-medium"):
+        """
+        Advanced Query Engine for SOP Knowledge Assistant
+        Supports: Q&A, Step-by-step instructions, Future multimodal capabilities
+        """
         try:
             # Check if CUDA is available and set device
             device = 0 if torch.cuda.is_available() else -1
             device_name = "GPU (CUDA)" if device == 0 else "CPU"
-            print(f"🚀 Loading model on: {device_name}")
-            print(f"📦 Model: {model_name} (~80MB)")
+            print(f"🚀 Loading Advanced Query Engine on: {device_name}")
+            print(f"📦 Model: {model_name} (~400MB) - Optimized for complex tasks")
             
             if torch.cuda.is_available():
                 print(f"   GPU: {torch.cuda.get_device_name(0)}")
                 print(f"   GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
+                print(f"   Ready for multimodal extensions")
             
-            # Initialize the text2text-generation pipeline (better for Q&A)
+            # Initialize advanced text generation pipeline
             dtype = torch.float16 if torch.cuda.is_available() else torch.float32
             self.generator = pipeline(
-                "text2text-generation",  # Better for Q&A than text-generation
+                "text-generation",
                 model=model_name,
                 tokenizer=model_name,
-                device=device,  # Use GPU if available
-                max_length=256,  # Smaller max length for focused answers
-                do_sample=False,  # Deterministic for better consistency
-                model_kwargs={"dtype": dtype}  # Use dtype instead of torch_dtype
+                device=device,
+                max_length=2048,  # Extended for detailed step-by-step instructions
+                do_sample=True,
+                temperature=0.8,  # Slightly higher for creative instruction generation
+                top_p=0.9,
+                repetition_penalty=1.1,
+                pad_token_id=50256,
+                model_kwargs={"dtype": dtype}
             )
             self.model_loaded = True
-            print(f"✅ Model loaded successfully on {device_name}")
+            print(f"✅ Advanced Query Engine loaded successfully")
+            print(f"   Features: Q&A, Step-by-step instructions, SOP generation ready")
         except Exception as e:
             print(f"❌ Error loading model: {e}")
             print("   Falling back to CPU...")
             try:
                 # Fallback to CPU
                 self.generator = pipeline(
-                    "text2text-generation",
+                    "text-generation",
                     model=model_name,
                     tokenizer=model_name,
-                    device=-1,  # CPU fallback
-                    max_length=256,
-                    do_sample=False,
-                    model_kwargs={"dtype": torch.float32}  # Use dtype instead of torch_dtype
+                    device=-1,
+                    max_length=2048,
+                    do_sample=True,
+                    temperature=0.8,
+                    top_p=0.9,
+                    repetition_penalty=1.1,
+                    pad_token_id=50256,
+                    model_kwargs={"dtype": torch.float32}
                 )
                 self.model_loaded = True
-                print("✅ Model loaded on CPU (fallback)")
+                print("✅ Advanced Query Engine loaded on CPU (fallback)")
             except Exception as e2:
                 print(f"❌ CPU fallback also failed: {e2}")
                 self.generator = None
                 self.model_loaded = False
     
     def generate_answer(self, query: str, context_docs: List[Document], 
-                       max_context_length: int = 1500) -> Dict[str, Any]:
-        """Generate answer based on query and context documents"""
+                       max_context_length: int = 3500) -> Dict[str, Any]:
+        """
+        Advanced answer generation with multiple modes:
+        - Standard Q&A
+        - Step-by-step instructions
+        - SOP generation (future)
+        """
         
         if not self.model_loaded:
             return {
-                "answer": "Language model not available. Here are the relevant document excerpts:",
+                "answer": "Advanced Query Engine not available. Here are the relevant document excerpts:",
                 "sources": [doc.metadata.get("file_name", "Unknown") for doc in context_docs[:3]],
-                "context": [doc.page_content[:200] + "..." for doc in context_docs[:3]]
+                "context": [doc.page_content[:200] + "..." for doc in context_docs[:3]],
+                "answer_type": "fallback"
             }
         
-        # Prepare context from retrieved documents - more focused
+        # Analyze query intent to determine response type
+        response_type = self._analyze_query_intent(query)
+        
+        # Prepare context from retrieved documents
         context = self._prepare_context(context_docs, max_context_length)
         
-        # Create better prompt for Flan-T5
-        prompt = f"""Please answer the question based on the following information:
-
-{context}
-
-Question: {query}
-Answer:"""
-        
-        try:
-            # Generate response with Flan-T5
-            response = self.generator(
-                prompt,
-                max_length=150,  # Shorter for more focused answers
-                num_return_sequences=1,
-                truncation=True,
-                clean_up_tokenization_spaces=True,
-                do_sample=False  # More deterministic
-            )
-            
-            # Extract the generated answer
-            answer = response[0]['generated_text'].strip()
-            
-            # Clean up the answer
-            answer = self._clean_answer(answer)
-            
-            # If answer is too short or generic, extract key info from context
-            if not answer or len(answer.split()) < 5:
-                answer = self._extract_key_info(context, query)
-            
-        except Exception as e:
-            print(f"Error generating answer: {e}")
-            answer = self._extract_key_info(context, query)
+        # Generate appropriate response based on intent
+        if response_type == "step_by_step":
+            answer = self._generate_step_by_step_instructions(query, context)
+        elif response_type == "generate_sop":
+            answer = self._generate_new_sop(query, context)
+        else:
+            answer = self._generate_standard_answer(query, context)
         
         return {
             "answer": answer,
             "sources": list(set([doc.metadata.get("file_name", "Unknown") for doc in context_docs])),
             "context": [doc.page_content for doc in context_docs],
-            "confidence": self._calculate_confidence(context_docs, query)
+            "confidence": self._calculate_confidence(context_docs, query),
+            "answer_type": response_type
         }
+    
+    def _analyze_query_intent(self, query: str) -> str:
+        """Analyze query to determine the type of response needed"""
+        query_lower = query.lower()
+        
+        # Step-by-step instruction indicators
+        step_indicators = [
+            "how to", "step by step", "procedure", "process", 
+            "instructions", "guide", "walkthrough", "tutorial"
+        ]
+        
+        # SOP generation indicators
+        sop_indicators = [
+            "create sop", "generate sop", "new procedure", 
+            "write procedure", "draft sop", "develop procedure"
+        ]
+        
+        if any(indicator in query_lower for indicator in step_indicators):
+            return "step_by_step"
+        elif any(indicator in query_lower for indicator in sop_indicators):
+            return "generate_sop"
+        else:
+            return "standard_qa"
+    
+    def _generate_standard_answer(self, query: str, context: str) -> str:
+        """Generate standard Q&A response"""
+        prompt = f"""Based on the SOP documentation below, provide a comprehensive and accurate answer.
+
+SOP Documentation:
+{context}
+
+Question: {query}
+
+Detailed Answer:"""
+        
+        return self._generate_response(prompt, temperature=0.7, max_tokens=300)
+    
+    def _generate_step_by_step_instructions(self, query: str, context: str) -> str:
+        """Generate detailed step-by-step instructions"""
+        prompt = f"""Based on the SOP documentation, create detailed step-by-step instructions for the following request.
+
+SOP Documentation:
+{context}
+
+Request: {query}
+
+Step-by-Step Instructions:
+
+1."""
+        
+        response = self._generate_response(prompt, temperature=0.8, max_tokens=400)
+        
+        # Ensure proper step formatting
+        if not response.startswith("1."):
+            response = "1. " + response
+            
+        return self._format_step_by_step(response)
+    
+    def _generate_new_sop(self, query: str, context: str) -> str:
+        """Generate new SOP based on existing procedures (future feature)"""
+        prompt = f"""Based on the existing SOP documentation, create a new Standard Operating Procedure for the following requirement.
+
+Existing SOP Documentation:
+{context}
+
+Requirement: {query}
+
+NEW STANDARD OPERATING PROCEDURE
+
+Title: [Generated based on requirement]
+
+Purpose:"""
+        
+        return self._generate_response(prompt, temperature=0.9, max_tokens=500)
+    
+    def _generate_response(self, prompt: str, temperature: float = 0.7, max_tokens: int = 300) -> str:
+        """Core response generation with error handling and smart fallback"""
+        try:
+            response = self.generator(
+                prompt,
+                max_new_tokens=max_tokens,
+                num_return_sequences=1,
+                truncation=True,
+                do_sample=True,
+                temperature=temperature,
+                top_p=0.9,
+                repetition_penalty=1.1,
+                pad_token_id=50256
+            )
+            
+            # Extract generated text
+            full_text = response[0]['generated_text']
+            generated_part = full_text[len(prompt):].strip()
+            
+            # Clean and format response
+            cleaned_response = self._clean_and_format_response(generated_part)
+            
+            # If response is too short or empty, use document-based extraction
+            if not cleaned_response or len(cleaned_response.split()) < 10:
+                print("Generated response too short, using document extraction")
+                return self._extract_from_context(prompt)
+            
+            return cleaned_response
+            
+        except Exception as e:
+            print(f"Error generating response: {e}")
+            return self._extract_from_context(prompt)
+    
+    def _extract_from_context(self, prompt: str) -> str:
+        """Extract relevant information directly from the context in the prompt"""
+        # Find the context section in the prompt
+        context_markers = ["Context:", "Documentation:", "SOP Documentation:"]
+        question_markers = ["Question:", "Request:", "Query:"]
+        
+        context_start = -1
+        for marker in context_markers:
+            pos = prompt.find(marker)
+            if pos != -1:
+                context_start = pos
+                break
+        
+        question_start = -1
+        for marker in question_markers:
+            pos = prompt.find(marker)
+            if pos != -1:
+                question_start = pos
+                break
+        
+        if context_start != -1 and question_start != -1:
+            # Extract context and clean it
+            context_section = prompt[context_start:question_start]
+            for marker in context_markers:
+                context_section = context_section.replace(marker, "")
+            context = context_section.strip()
+            
+            # Extract the question
+            question_section = prompt[question_start:]
+            for marker in question_markers:
+                question_section = question_section.replace(marker, "")
+            question = question_section.split("\n")[0].strip()
+            
+            # Use the existing key info extraction
+            return self._extract_key_information(context, question)
+        
+        return "Unable to process the request. Please check the document content."
+    
+    def _extract_key_information(self, context: str, query: str) -> str:
+        """Smart extraction of key information from context"""
+        if not context or not query:
+            return "No context or query provided."
+        
+        query_lower = query.lower()
+        
+        # Check if this is a step-by-step request
+        is_step_request = any(word in query_lower for word in ['step', 'procedure', 'process', 'how to', 'guide'])
+        
+        # Split context into meaningful chunks (sentences or lines)
+        if '\n' in context:
+            chunks = [chunk.strip() for chunk in context.split('\n') if chunk.strip()]
+        else:
+            chunks = re.split(r'[.!?]+', context)
+            chunks = [chunk.strip() for chunk in chunks if len(chunk.strip()) > 15]
+        
+        query_words = set(word.lower() for word in query.split() if len(word) > 2)
+        scored_chunks = []
+        
+        for chunk in chunks:
+            if len(chunk) < 10:
+                continue
+                
+            chunk_words = set(word.lower() for word in chunk.split())
+            overlap = len(query_words.intersection(chunk_words))
+            
+            # Boost score for procedural keywords if step request
+            if is_step_request:
+                procedural_words = {'step', 'first', 'then', 'next', 'finally', 'procedure', 'process', 'perform'}
+                procedural_overlap = len(procedural_words.intersection(chunk_words))
+                overlap += procedural_overlap * 2
+            
+            if overlap > 0:
+                score = overlap / max(len(query_words), 1)
+                scored_chunks.append((chunk, score))
+        
+        # Sort by relevance
+        scored_chunks.sort(key=lambda x: x[1], reverse=True)
+        
+        if scored_chunks:
+            # Take top relevant chunks
+            top_chunks = [chunk[0] for chunk in scored_chunks[:6]]
+            
+            if is_step_request:
+                # Format as steps if it's a procedural request
+                formatted_steps = []
+                for i, chunk in enumerate(top_chunks, 1):
+                    if not chunk.strip().startswith(str(i)):
+                        formatted_steps.append(f"{i}. {chunk}")
+                    else:
+                        formatted_steps.append(chunk)
+                return '\n'.join(formatted_steps)
+            else:
+                return '. '.join(top_chunks) + '.'
+        else:
+            # If no matches, return first few meaningful chunks
+            meaningful_chunks = [chunk for chunk in chunks if len(chunk) > 30][:3]
+            if meaningful_chunks:
+                return '. '.join(meaningful_chunks) + '.'
+            return "No specific information found for your query in the available documents."
+    
+    def _format_step_by_step(self, text: str) -> str:
+        """Format text as proper step-by-step instructions"""
+        lines = text.split('\n')
+        formatted_steps = []
+        step_counter = 1
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # If line doesn't start with a number, make it a step
+            if not re.match(r'^\d+\.', line):
+                line = f"{step_counter}. {line}"
+                step_counter += 1
+            
+            formatted_steps.append(line)
+        
+        return '\n'.join(formatted_steps)
+    
+    def _clean_and_format_response(self, response: str) -> str:
+        """Clean and format the generated response"""
+        if not response:
+            return "No response generated."
+        
+        # Basic cleaning
+        response = response.strip()
+        
+        # Remove repetitive patterns
+        lines = response.split('\n')
+        unique_lines = []
+        for line in lines:
+            line = line.strip()
+            if line and line not in unique_lines:
+                unique_lines.append(line)
+        
+        cleaned = '\n'.join(unique_lines)
+        
+        # Ensure proper sentence endings
+        if cleaned and not cleaned.endswith(('.', '!', '?', ':')):
+            # Find last complete sentence
+            last_period = cleaned.rfind('.')
+            if last_period > len(cleaned) * 0.7:
+                cleaned = cleaned[:last_period + 1]
+        
+        return cleaned
     
     def _prepare_context(self, docs: List[Document], max_length: int) -> str:
         """Prepare context string from documents"""
@@ -143,26 +396,22 @@ Answer:"""
         
         return cleaned
     
-    def _extract_key_info(self, context: str, query: str) -> str:
-        """Extract key information from context when model fails"""
-        query_words = query.lower().split()
-        context_lower = context.lower()
-        
-        # Find sentences that contain query words
-        sentences = context.split('.')
-        relevant_sentences = []
-        
-        for sentence in sentences:
-            sentence = sentence.strip()
-            if any(word in sentence.lower() for word in query_words) and len(sentence) > 20:
-                relevant_sentences.append(sentence)
-        
-        if relevant_sentences:
-            # Return the most relevant sentences
-            return '. '.join(relevant_sentences[:3]) + '.'
-        else:
-            # Return first part of context
-            return context[:300] + '...'
+    # Future: Multimodal capabilities preparation
+    def _prepare_multimodal_context(self, context_docs: List[Document], images: List = None) -> str:
+        """
+        Future method for multimodal context preparation
+        Will integrate text + images for comprehensive SOP understanding
+        """
+        # Currently text-only, ready for image integration
+        return self._prepare_context(context_docs, 3500)
+    
+    def _generate_sop_with_images(self, query: str, context: str, images: List = None) -> str:
+        """
+        Future method for generating SOPs with visual elements
+        Will create comprehensive SOPs with text + diagrams/images
+        """
+        # Placeholder for future multimodal SOP generation
+        return self._generate_new_sop(query, context)
     
     def _calculate_confidence(self, docs: List[Document], query: str) -> float:
         """Calculate confidence score based on retrieved documents"""

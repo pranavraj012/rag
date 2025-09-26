@@ -37,7 +37,7 @@ class VectorStore:
         try:
             if documents:
                 self.vectorstore.add_documents(documents)
-                self.vectorstore.persist()
+                # Note: Chroma now auto-persists, no need for manual persist()
                 print(f"Added {len(documents)} document chunks to vector store")
                 return True
             return False
