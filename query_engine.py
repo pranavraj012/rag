@@ -6,28 +6,28 @@ from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 from langchain.schema import Document
 
 class QueryEngine:
-    def __init__(self, model_name: str = "microsoft/DialoGPT-medium"):
+    def __init__(self, model_name: str = "google/flan-t5-small"):
         try:
             # Check if CUDA is available and set device
             device = 0 if torch.cuda.is_available() else -1
             device_name = "GPU (CUDA)" if device == 0 else "CPU"
             print(f"🚀 Loading model on: {device_name}")
+            print(f"📦 Model: {model_name} (~80MB)")
             
             if torch.cuda.is_available():
                 print(f"   GPU: {torch.cuda.get_device_name(0)}")
                 print(f"   GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
             
-            # Initialize the text generation pipeline
+            # Initialize the text2text-generation pipeline (better for Q&A)
+            dtype = torch.float16 if torch.cuda.is_available() else torch.float32
             self.generator = pipeline(
-                "text-generation",
+                "text2text-generation",  # Better for Q&A than text-generation
                 model=model_name,
                 tokenizer=model_name,
                 device=device,  # Use GPU if available
-                max_length=512,
-                do_sample=True,
-                temperature=0.7,
-                pad_token_id=50256,
-                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32  # Use FP16 on GPU for memory efficiency
+                max_length=256,  # Smaller max length for focused answers
+                do_sample=False,  # Deterministic for better consistency
+                model_kwargs={"dtype": dtype}  # Use dtype instead of torch_dtype
             )
             self.model_loaded = True
             print(f"✅ Model loaded successfully on {device_name}")
@@ -37,14 +37,13 @@ class QueryEngine:
             try:
                 # Fallback to CPU
                 self.generator = pipeline(
-                    "text-generation",
+                    "text2text-generation",
                     model=model_name,
                     tokenizer=model_name,
                     device=-1,  # CPU fallback
-                    max_length=512,
-                    do_sample=True,
-                    temperature=0.7,
-                    pad_token_id=50256
+                    max_length=256,
+                    do_sample=False,
+                    model_kwargs={"dtype": torch.float32}  # Use dtype instead of torch_dtype
                 )
                 self.model_loaded = True
                 print("✅ Model loaded on CPU (fallback)")
@@ -54,7 +53,7 @@ class QueryEngine:
                 self.model_loaded = False
     
     def generate_answer(self, query: str, context_docs: List[Document], 
-                       max_context_length: int = 2000) -> Dict[str, Any]:
+                       max_context_length: int = 1500) -> Dict[str, Any]:
         """Generate answer based on query and context documents"""
         
         if not self.model_loaded:
@@ -64,37 +63,41 @@ class QueryEngine:
                 "context": [doc.page_content[:200] + "..." for doc in context_docs[:3]]
             }
         
-        # Prepare context from retrieved documents
+        # Prepare context from retrieved documents - more focused
         context = self._prepare_context(context_docs, max_context_length)
         
-        # Create prompt
-        prompt = f"""Based on the following context from SOP documents, answer the question clearly and concisely.
+        # Create better prompt for Flan-T5
+        prompt = f"""Please answer the question based on the following information:
 
-Context:
 {context}
 
 Question: {query}
-
 Answer:"""
         
         try:
-            # Generate response
+            # Generate response with Flan-T5
             response = self.generator(
                 prompt,
-                max_new_tokens=150,
+                max_length=150,  # Shorter for more focused answers
                 num_return_sequences=1,
-                truncation=True
+                truncation=True,
+                clean_up_tokenization_spaces=True,
+                do_sample=False  # More deterministic
             )
             
-            generated_text = response[0]['generated_text']
-            answer = generated_text.split("Answer:")[-1].strip()
+            # Extract the generated answer
+            answer = response[0]['generated_text'].strip()
             
             # Clean up the answer
             answer = self._clean_answer(answer)
             
+            # If answer is too short or generic, extract key info from context
+            if not answer or len(answer.split()) < 5:
+                answer = self._extract_key_info(context, query)
+            
         except Exception as e:
             print(f"Error generating answer: {e}")
-            answer = "Unable to generate response. Please refer to the context below."
+            answer = self._extract_key_info(context, query)
         
         return {
             "answer": answer,
@@ -139,6 +142,27 @@ Answer:"""
                 cleaned = cleaned[:last_period + 1]
         
         return cleaned
+    
+    def _extract_key_info(self, context: str, query: str) -> str:
+        """Extract key information from context when model fails"""
+        query_words = query.lower().split()
+        context_lower = context.lower()
+        
+        # Find sentences that contain query words
+        sentences = context.split('.')
+        relevant_sentences = []
+        
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if any(word in sentence.lower() for word in query_words) and len(sentence) > 20:
+                relevant_sentences.append(sentence)
+        
+        if relevant_sentences:
+            # Return the most relevant sentences
+            return '. '.join(relevant_sentences[:3]) + '.'
+        else:
+            # Return first part of context
+            return context[:300] + '...'
     
     def _calculate_confidence(self, docs: List[Document], query: str) -> float:
         """Calculate confidence score based on retrieved documents"""
