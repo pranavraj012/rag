@@ -62,19 +62,20 @@ streamlit run app.py
 
 ## 💾 Model
 
-The system uses **Microsoft Phi-2** (2.7B parameters) for high-quality answer generation:
+The system uses **TinyLlama-1.1B-Chat** (1.1B parameters) for efficient answer generation:
 
-- **Size:** 2.7B parameters (~2.5GB VRAM)
-- **Quality:** ⭐⭐⭐⭐⭐ Excellent
-- **Optimized for:** GTX 1650 4GB and up
+- **Size:** 1.1B parameters (~1.5GB VRAM)
+- **Quality:** ⭐⭐⭐⭐ Very Good
+- **Optimized for:** GTX 1650 4GB and lower-end GPUs
 - **Features:** Q&A, Step-by-step instructions, detailed explanations
+- **Advantage:** Smaller footprint, faster responses
 
 ### First-Time Setup
 
-On first run, Phi-2 will be downloaded (~5.2GB, one-time):
-- Download time: 5-10 minutes (depending on connection)
+On first run, TinyLlama will be downloaded (~2.2GB, one-time):
+- Download time: 2-5 minutes (depending on connection)
 - Cached at: `~/.cache/huggingface/hub/`
-- Loading time: 5-8 seconds (subsequent runs)
+- Loading time: 3-5 seconds (subsequent runs)
 
 ## 🖥️ GPU Support
 
@@ -84,10 +85,10 @@ On first run, Phi-2 will be downloaded (~5.2GB, one-time):
 - **RTX 3070/4070+**: ✅ Optimal performance
 
 ### Performance:
-- **Model Loading**: ~5 seconds on GPU
-- **Query Processing**: ~3-5 seconds per query
-- **VRAM Usage**: ~2.5GB (Phi-2)
-- **Leaves room**: ~1.5GB free for other applications
+- **Model Loading**: ~3 seconds on GPU
+- **Query Processing**: ~2-4 seconds per query
+- **VRAM Usage**: ~1.5GB (TinyLlama)
+- **Leaves room**: ~2.5GB free for other applications
 
 ## 📁 Project Structure
 
@@ -120,7 +121,7 @@ EMBEDDING_MODEL=all-MiniLM-L6-v2
 
 Run the quick test to verify everything works:
 ```bash
-python test_phi2.py
+python tests/test_phi2.py
 ```
 
 Or run comprehensive tests:

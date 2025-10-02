@@ -6,10 +6,10 @@ from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 from langchain.schema import Document
 
 class QueryEngine:
-    def __init__(self, model_name: str = "microsoft/phi-2"):
+    def __init__(self, model_name: str = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"):
         """
-        Advanced Query Engine for SOP Knowledge Assistant with Phi-2 (2.7B params)
-        Optimized for GTX 1650 4GB VRAM
+        Advanced Query Engine for SOP Knowledge Assistant with TinyLlama (1.1B params)
+        Optimized for GTX 1650 4GB VRAM - Smaller footprint (~2.2GB)
         
         Supports: Q&A, Step-by-step instructions, SOP generation
         """
@@ -18,18 +18,18 @@ class QueryEngine:
             device = 0 if torch.cuda.is_available() else -1
             device_name = "GPU (CUDA)" if device == 0 else "CPU"
             
-            print(f"🚀 Loading Phi-2 Query Engine on: {device_name}")
-            print(f"📦 Model: {model_name} (2.7B params)")
-            print(f"   Size: ~2.5GB VRAM - Optimized for high-quality answers")
+            print(f"🚀 Loading TinyLlama Query Engine on: {device_name}")
+            print(f"📦 Model: {model_name} (1.1B params)")
+            print(f"   Size: ~1.5GB VRAM - Optimized for 4GB GPU")
             
             if torch.cuda.is_available():
                 print(f"   GPU: {torch.cuda.get_device_name(0)}")
                 print(f"   GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
             
-            # Initialize Phi-2 text generation pipeline with optimized settings
+            # Initialize TinyLlama text generation pipeline with optimized settings
             dtype = torch.float16 if torch.cuda.is_available() else torch.float32
             
-            # Phi-2 specific optimizations
+            # TinyLlama optimizations (no trust_remote_code needed)
             self.generator = pipeline(
                 "text-generation",
                 model=model_name,
@@ -37,19 +37,18 @@ class QueryEngine:
                 device=device,
                 max_length=2048,
                 do_sample=True,
-                temperature=0.7,  # Optimized for Phi-2
+                temperature=0.7,
                 top_p=0.95,
                 repetition_penalty=1.15,
-                trust_remote_code=True,
                 model_kwargs={"torch_dtype": dtype}
             )
             
             self.model_loaded = True
             self.model_name = model_name
-            print(f"✅ Phi-2 Query Engine loaded successfully")
+            print(f"✅ TinyLlama Query Engine loaded successfully")
             print(f"   Features: Q&A, Step-by-step instructions, SOP generation ready")
         except Exception as e:
-            print(f"❌ Error loading Phi-2: {e}")
+            print(f"❌ Error loading TinyLlama: {e}")
             print("   System will use document extraction fallback")
             self.generator = None
             self.model_loaded = False
@@ -118,30 +117,33 @@ class QueryEngine:
             return "standard_qa"
     
     def _generate_standard_answer(self, query: str, context: str) -> str:
-        """Generate standard Q&A response with Phi-2 optimized prompt"""
-        # Phi-2 works better with clear, instruction-style prompts
-        prompt = f"""Instruct: Answer the following question based on the provided documentation. Be detailed and comprehensive.
+        """Generate standard Q&A response with TinyLlama optimized prompt"""
+        # TinyLlama Chat format
+        prompt = f"""<|system|>
+You are a helpful assistant answering questions based on documentation.
+<|user|>
+Answer the following question based on the provided documentation. Be detailed and comprehensive.
 
 Documentation:
 {context}
 
 Question: {query}
-
-Output:"""
+<|assistant|>"""
         
         return self._generate_response(prompt, temperature=0.7, max_tokens=400)
     
     def _generate_step_by_step_instructions(self, query: str, context: str) -> str:
-        """Generate detailed step-by-step instructions with Phi-2"""
-        prompt = f"""Instruct: Create detailed step-by-step instructions based on the documentation.
+        """Generate detailed step-by-step instructions with TinyLlama"""
+        prompt = f"""<|system|>
+You are a helpful assistant creating step-by-step instructions.
+<|user|>
+Create detailed step-by-step instructions based on the documentation.
 
 Documentation:
 {context}
 
 Request: {query}
-
-Output: Provide clear numbered steps.
-
+<|assistant|>
 1."""
         
         response = self._generate_response(prompt, temperature=0.7, max_tokens=500)
@@ -170,9 +172,9 @@ Purpose:"""
         return self._generate_response(prompt, temperature=0.9, max_tokens=500)
     
     def _generate_response(self, prompt: str, temperature: float = 0.7, max_tokens: int = 300) -> str:
-        """Core response generation with Phi-2 optimized settings"""
+        """Core response generation with TinyLlama optimized settings"""
         try:
-            # Generate with Phi-2 optimized parameters
+            # Generate with TinyLlama optimized parameters
             response = self.generator(
                 prompt,
                 max_new_tokens=max_tokens,
@@ -190,7 +192,7 @@ Purpose:"""
             full_text = response[0]['generated_text']
             generated_part = full_text[len(prompt):].strip()
             
-            # Clean and format response (but don't reject if short - Phi-2 is good at concise answers)
+            # Clean and format response (but don't reject if short - TinyLlama can be concise)
             cleaned_response = self._clean_and_format_response(generated_part)
             
             # Only fallback if truly empty or error
