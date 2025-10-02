@@ -142,12 +142,16 @@ def main():
         if st.button("Ask Question", type="primary"):
             if query.strip():
                 with st.spinner("Searching and generating answer..."):
-                    # Retrieve relevant documents
-                    relevant_docs = vector_store.search(query, k=num_results)
+                    # Retrieve relevant documents with similarity scores
+                    docs_with_scores = vector_store.search_with_scores(query, k=num_results)
                     
-                    if relevant_docs:
-                        # Generate answer
-                        result = query_engine.generate_answer(query, relevant_docs)
+                    if docs_with_scores:
+                        # Separate documents and scores
+                        relevant_docs = [doc for doc, score in docs_with_scores]
+                        similarity_scores = [score for doc, score in docs_with_scores]
+                        
+                        # Generate answer with similarity scores for better confidence
+                        result = query_engine.generate_answer(query, relevant_docs, similarity_scores=similarity_scores)
                         
                         # Display answer with type indicator
                         answer_type = result.get("answer_type", "standard_qa")
@@ -166,7 +170,16 @@ def main():
                         col_conf, col_sources, col_type = st.columns(3)
                         with col_conf:
                             confidence_pct = result.get("confidence", 0) * 100
-                            st.metric("Confidence", f"{confidence_pct:.1f}%")
+                            
+                            # Color-code confidence
+                            if confidence_pct >= 75:
+                                conf_color = "🟢"  # High confidence
+                            elif confidence_pct >= 50:
+                                conf_color = "🟡"  # Medium confidence
+                            else:
+                                conf_color = "🔴"  # Low confidence
+                            
+                            st.metric("Confidence", f"{conf_color} {confidence_pct:.1f}%")
                         
                         with col_sources:
                             st.write("**Sources:**")

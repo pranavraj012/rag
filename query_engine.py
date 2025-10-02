@@ -55,7 +55,7 @@ class QueryEngine:
             self.model_name = None
     
     def generate_answer(self, query: str, context_docs: List[Document], 
-                       max_context_length: int = 3500) -> Dict[str, Any]:
+                       max_context_length: int = 3500, similarity_scores: List[float] = None) -> Dict[str, Any]:
         """
         Advanced answer generation with multiple modes:
         - Standard Q&A
@@ -89,7 +89,7 @@ class QueryEngine:
             "answer": answer,
             "sources": list(set([doc.metadata.get("file_name", "Unknown") for doc in context_docs])),
             "context": [doc.page_content for doc in context_docs],
-            "confidence": self._calculate_confidence(context_docs, query),
+            "confidence": self._calculate_confidence(context_docs, query, answer, similarity_scores),
             "answer_type": response_type
         }
     
@@ -447,22 +447,65 @@ Purpose:"""
         # Placeholder for future multimodal SOP generation
         return self._generate_new_sop(query, context)
     
-    def _calculate_confidence(self, docs: List[Document], query: str) -> float:
-        """Calculate confidence score based on retrieved documents"""
+    def _calculate_confidence(self, docs: List[Document], query: str, answer: str, 
+                             similarity_scores: List[float] = None) -> float:
+        """Calculate advanced confidence score using multiple factors"""
         if not docs:
             return 0.0
         
-        # Simple confidence calculation based on number of docs and query word overlap
-        query_words = set(query.lower().split())
-        total_overlap = 0
+        # Factor 1: Semantic Similarity (from ChromaDB) - Most important
+        # ChromaDB uses cosine distance, so lower is better (0 = identical)
+        # Convert to similarity: 1 - distance
+        if similarity_scores:
+            # Take average of top 3 documents
+            top_scores = similarity_scores[:min(3, len(similarity_scores))]
+            # Convert distance to similarity (0-1 range)
+            similarities = [1.0 - min(score, 1.0) for score in top_scores]
+            semantic_score = sum(similarities) / len(similarities)
+        else:
+            semantic_score = 0.5  # Default if no scores provided
         
-        for doc in docs:
-            doc_words = set(doc.page_content.lower().split())
-            overlap = len(query_words.intersection(doc_words))
-            total_overlap += overlap
+        # Factor 2: Query Coverage - How well docs cover query terms
+        query_words = set(word.lower() for word in query.split() if len(word) > 2)
+        if not query_words:
+            coverage_score = 0.5
+        else:
+            covered_words = set()
+            for doc in docs[:3]:  # Check top 3 docs
+                doc_words = set(word.lower() for word in doc.page_content.split())
+                covered_words.update(query_words.intersection(doc_words))
+            coverage_score = len(covered_words) / len(query_words)
         
-        # Normalize confidence score
-        max_possible = len(query_words) * len(docs)
-        confidence = min(total_overlap / max_possible if max_possible > 0 else 0, 1.0)
+        # Factor 3: Answer Quality - Length and completeness
+        if not answer or len(answer.strip()) < 20:
+            quality_score = 0.3  # Very short answer
+        elif len(answer.strip()) < 50:
+            quality_score = 0.5  # Short answer
+        elif len(answer.strip()) < 150:
+            quality_score = 0.7  # Medium answer
+        else:
+            quality_score = 0.9  # Comprehensive answer
         
-        return confidence
+        # Factor 4: Key Terms Match - Important domain-specific terms
+        key_terms = ['procedure', 'step', 'must', 'should', 'required', 'ensure', 
+                     'safety', 'equipment', 'vessel', 'repair', 'defect']
+        answer_lower = answer.lower()
+        query_lower = query.lower()
+        
+        # Check if answer contains relevant key terms from query context
+        key_term_matches = sum(1 for term in key_terms if term in query_lower and term in answer_lower)
+        key_term_score = min(key_term_matches / 3, 1.0)  # Normalize
+        
+        # Factor 5: Document Count - More relevant docs = higher confidence
+        doc_count_score = min(len(docs) / 5.0, 1.0)  # Normalize to 1.0 at 5 docs
+        
+        # Weighted combination (semantic similarity is most important)
+        confidence = (
+            semantic_score * 0.40 +      # 40% - Most important: semantic relevance
+            coverage_score * 0.25 +      # 25% - Query term coverage
+            quality_score * 0.15 +       # 15% - Answer quality/length
+            key_term_score * 0.10 +      # 10% - Key terms match
+            doc_count_score * 0.10       # 10% - Number of relevant docs
+        )
+        
+        return min(confidence, 1.0)
