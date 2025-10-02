@@ -6,50 +6,118 @@ from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 from langchain.schema import Document
 
 class QueryEngine:
-    def __init__(self, model_name: str = "microsoft/DialoGPT-medium"):
+    def __init__(self, model_name: str = "microsoft/phi-2"):
         """
-        Advanced Query Engine for SOP Knowledge Assistant
+        Advanced Query Engine for SOP Knowledge Assistant with 1B+ parameter model
+        
+        Recommended models (in order of quality):
+        1. "microsoft/phi-2" - 2.7B params, BEST for Q&A (2.5GB VRAM)
+        2. "TinyLlama/TinyLlama-1.1B-Chat-v1.0" - 1.1B params, Good balance (1.2GB VRAM)
+        3. "stabilityai/stablelm-2-1_6b" - 1.6B params, Very good (1.8GB VRAM)
+        4. "microsoft/DialoGPT-medium" - 350M params, Lightweight fallback (400MB VRAM)
+        
         Supports: Q&A, Step-by-step instructions, Future multimodal capabilities
         """
         try:
             # Check if CUDA is available and set device
             device = 0 if torch.cuda.is_available() else -1
             device_name = "GPU (CUDA)" if device == 0 else "CPU"
+            
+            # Determine model size for display
+            model_sizes = {
+                "microsoft/phi-2": "2.7B params (~2.5GB)",
+                "TinyLlama/TinyLlama-1.1B-Chat-v1.0": "1.1B params (~1.2GB)",
+                "stabilityai/stablelm-2-1_6b": "1.6B params (~1.8GB)",
+                "microsoft/DialoGPT-medium": "350M params (~400MB)"
+            }
+            model_size = model_sizes.get(model_name, "Unknown size")
+            
             print(f"🚀 Loading Advanced Query Engine on: {device_name}")
-            print(f"📦 Model: {model_name} (~400MB) - Optimized for complex tasks")
+            print(f"📦 Model: {model_name}")
+            print(f"   Size: {model_size} - Optimized for high-quality answers")
             
             if torch.cuda.is_available():
                 print(f"   GPU: {torch.cuda.get_device_name(0)}")
                 print(f"   GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
                 print(f"   Ready for multimodal extensions")
             
-            # Initialize advanced text generation pipeline
+            # Initialize advanced text generation pipeline with optimized settings
             dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-            self.generator = pipeline(
-                "text-generation",
-                model=model_name,
-                tokenizer=model_name,
-                device=device,
-                max_length=2048,  # Extended for detailed step-by-step instructions
-                do_sample=True,
-                temperature=0.8,  # Slightly higher for creative instruction generation
-                top_p=0.9,
-                repetition_penalty=1.1,
-                pad_token_id=50256,
-                model_kwargs={"dtype": dtype}
-            )
-            self.model_loaded = True
-            print(f"✅ Advanced Query Engine loaded successfully")
-            print(f"   Features: Q&A, Step-by-step instructions, SOP generation ready")
-        except Exception as e:
-            print(f"❌ Error loading model: {e}")
-            print("   Falling back to CPU...")
-            try:
-                # Fallback to CPU
+            
+            # Special handling for Phi-2 and other instruction-tuned models
+            if "phi-2" in model_name.lower():
+                # Phi-2 specific optimizations
                 self.generator = pipeline(
                     "text-generation",
                     model=model_name,
                     tokenizer=model_name,
+                    device=device,
+                    max_length=2048,
+                    do_sample=True,
+                    temperature=0.7,  # Lower for Phi-2 (more focused)
+                    top_p=0.95,
+                    repetition_penalty=1.15,
+                    model_kwargs={"torch_dtype": dtype, "trust_remote_code": True}
+                )
+            elif "tinyllama" in model_name.lower():
+                # TinyLlama chat optimizations
+                self.generator = pipeline(
+                    "text-generation",
+                    model=model_name,
+                    tokenizer=model_name,
+                    device=device,
+                    max_length=2048,
+                    do_sample=True,
+                    temperature=0.75,
+                    top_p=0.9,
+                    repetition_penalty=1.1,
+                    model_kwargs={"torch_dtype": dtype}
+                )
+            elif "stablelm" in model_name.lower():
+                # StableLM optimizations
+                self.generator = pipeline(
+                    "text-generation",
+                    model=model_name,
+                    tokenizer=model_name,
+                    device=device,
+                    max_length=2048,
+                    do_sample=True,
+                    temperature=0.8,
+                    top_p=0.9,
+                    repetition_penalty=1.2,
+                    model_kwargs={"torch_dtype": dtype, "trust_remote_code": True}
+                )
+            else:
+                # Default/DialoGPT configuration
+                self.generator = pipeline(
+                    "text-generation",
+                    model=model_name,
+                    tokenizer=model_name,
+                    device=device,
+                    max_length=2048,
+                    do_sample=True,
+                    temperature=0.8,
+                    top_p=0.9,
+                    repetition_penalty=1.1,
+                    pad_token_id=50256,
+                    model_kwargs={"dtype": dtype}
+                )
+            
+            self.model_loaded = True
+            self.model_name = model_name
+            print(f"✅ Advanced Query Engine loaded successfully")
+            print(f"   Features: Q&A, Step-by-step instructions, SOP generation ready")
+        except Exception as e:
+            print(f"❌ Error loading model: {e}")
+            print("   Falling back to CPU or smaller model...")
+            try:
+                # Fallback to CPU with smaller model
+                fallback_model = "microsoft/DialoGPT-medium"
+                print(f"   Attempting fallback to {fallback_model} on CPU...")
+                self.generator = pipeline(
+                    "text-generation",
+                    model=fallback_model,
+                    tokenizer=fallback_model,
                     device=-1,
                     max_length=2048,
                     do_sample=True,
@@ -60,11 +128,13 @@ class QueryEngine:
                     model_kwargs={"dtype": torch.float32}
                 )
                 self.model_loaded = True
-                print("✅ Advanced Query Engine loaded on CPU (fallback)")
+                self.model_name = fallback_model
+                print(f"✅ Advanced Query Engine loaded on CPU with fallback model")
             except Exception as e2:
                 print(f"❌ CPU fallback also failed: {e2}")
                 self.generator = None
                 self.model_loaded = False
+                self.model_name = None
     
     def generate_answer(self, query: str, context_docs: List[Document], 
                        max_context_length: int = 3500) -> Dict[str, Any]:
@@ -260,56 +330,103 @@ Purpose:"""
         # Check if this is a step-by-step request
         is_step_request = any(word in query_lower for word in ['step', 'procedure', 'process', 'how to', 'guide'])
         
-        # Split context into meaningful chunks (sentences or lines)
+        # Split context into meaningful chunks
+        # First try line-based splitting for better structure preservation
         if '\n' in context:
-            chunks = [chunk.strip() for chunk in context.split('\n') if chunk.strip()]
+            lines = [line.strip() for line in context.split('\n') if line.strip()]
+            # Filter out very short lines and combine related ones
+            chunks = []
+            current_chunk = ""
+            
+            for line in lines:
+                if len(line) < 15:  # Very short line, might be a fragment
+                    current_chunk += " " + line if current_chunk else line
+                elif current_chunk:
+                    # Complete the previous chunk and start a new one
+                    chunks.append(current_chunk.strip())
+                    current_chunk = line
+                else:
+                    chunks.append(line)
+            
+            # Don't forget the last chunk
+            if current_chunk:
+                chunks.append(current_chunk.strip())
         else:
+            # Fall back to sentence splitting
             chunks = re.split(r'[.!?]+', context)
             chunks = [chunk.strip() for chunk in chunks if len(chunk.strip()) > 15]
         
+        # Remove duplicate chunks (common issue)
+        unique_chunks = []
+        seen = set()
+        for chunk in chunks:
+            # Create a normalized version for comparison
+            normalized = re.sub(r'\s+', ' ', chunk.lower().strip())
+            if normalized not in seen and len(normalized) > 20:
+                unique_chunks.append(chunk)
+                seen.add(normalized)
+        
+        chunks = unique_chunks
+        
+        # Score chunks based on relevance to query
         query_words = set(word.lower() for word in query.split() if len(word) > 2)
         scored_chunks = []
         
         for chunk in chunks:
-            if len(chunk) < 10:
-                continue
-                
             chunk_words = set(word.lower() for word in chunk.split())
             overlap = len(query_words.intersection(chunk_words))
             
             # Boost score for procedural keywords if step request
             if is_step_request:
-                procedural_words = {'step', 'first', 'then', 'next', 'finally', 'procedure', 'process', 'perform'}
+                procedural_words = {'step', 'first', 'then', 'next', 'finally', 'procedure', 'process', 'perform', 'prepared', 'covering'}
                 procedural_overlap = len(procedural_words.intersection(chunk_words))
                 overlap += procedural_overlap * 2
+            
+            # Boost score for specific domain terms
+            domain_words = {'defect', 'list', 'repair', 'annual', 'vessel', 'master', 'engine', 'deck'}
+            domain_overlap = len(domain_words.intersection(chunk_words))
+            overlap += domain_overlap
             
             if overlap > 0:
                 score = overlap / max(len(query_words), 1)
                 scored_chunks.append((chunk, score))
         
-        # Sort by relevance
+        # Sort by relevance and take top chunks
         scored_chunks.sort(key=lambda x: x[1], reverse=True)
         
         if scored_chunks:
-            # Take top relevant chunks
-            top_chunks = [chunk[0] for chunk in scored_chunks[:6]]
+            # Take top relevant chunks, but ensure we get a complete answer
+            top_chunks = [chunk[0] for chunk in scored_chunks[:8]]
             
             if is_step_request:
                 # Format as steps if it's a procedural request
                 formatted_steps = []
-                for i, chunk in enumerate(top_chunks, 1):
-                    if not chunk.strip().startswith(str(i)):
-                        formatted_steps.append(f"{i}. {chunk}")
+                step_num = 1
+                for chunk in top_chunks:
+                    # Check if chunk already has numbering
+                    if re.match(r'^\d+\.?\s+', chunk.strip()):
+                        formatted_steps.append(chunk.strip())
+                    elif any(marker in chunk.lower() for marker in ['i.', 'ii.', 'iii.', 'a.', 'b.', 'c.']):
+                        formatted_steps.append(f"  {chunk.strip()}")  # Sub-point
                     else:
-                        formatted_steps.append(chunk)
+                        formatted_steps.append(f"{step_num}. {chunk.strip()}")
+                        step_num += 1
                 return '\n'.join(formatted_steps)
             else:
-                return '. '.join(top_chunks) + '.'
+                # For regular Q&A, create a coherent narrative
+                result = []
+                for chunk in top_chunks:
+                    # Clean up the chunk
+                    clean_chunk = chunk.strip()
+                    if clean_chunk and not clean_chunk.endswith('.'):
+                        clean_chunk += '.'
+                    result.append(clean_chunk)
+                
+                return ' '.join(result)
         else:
             # If no matches, return first few meaningful chunks
-            meaningful_chunks = [chunk for chunk in chunks if len(chunk) > 30][:3]
-            if meaningful_chunks:
-                return '. '.join(meaningful_chunks) + '.'
+            if chunks:
+                return '. '.join(chunks[:3]) + '.'
             return "No specific information found for your query in the available documents."
     
     def _format_step_by_step(self, text: str) -> str:
