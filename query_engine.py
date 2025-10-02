@@ -325,16 +325,9 @@ Purpose:"""
             if is_step_request:
                 # Format as steps if it's a procedural request
                 formatted_steps = []
-                step_num = 1
                 for chunk in top_chunks:
-                    # Check if chunk already has numbering
-                    if re.match(r'^\d+\.?\s+', chunk.strip()):
-                        formatted_steps.append(chunk.strip())
-                    elif any(marker in chunk.lower() for marker in ['i.', 'ii.', 'iii.', 'a.', 'b.', 'c.']):
-                        formatted_steps.append(f"  {chunk.strip()}")  # Sub-point
-                    else:
-                        formatted_steps.append(f"{step_num}. {chunk.strip()}")
-                        step_num += 1
+                    # Just use the chunk as-is, preserving original formatting (bullets/numbers)
+                    formatted_steps.append(chunk.strip())
                 return '\n'.join(formatted_steps)
             else:
                 # For regular Q&A, create a coherent narrative
