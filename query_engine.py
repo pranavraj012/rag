@@ -8,133 +8,51 @@ from langchain.schema import Document
 class QueryEngine:
     def __init__(self, model_name: str = "microsoft/phi-2"):
         """
-        Advanced Query Engine for SOP Knowledge Assistant with 1B+ parameter model
+        Advanced Query Engine for SOP Knowledge Assistant with Phi-2 (2.7B params)
+        Optimized for GTX 1650 4GB VRAM
         
-        Recommended models (in order of quality):
-        1. "microsoft/phi-2" - 2.7B params, BEST for Q&A (2.5GB VRAM)
-        2. "TinyLlama/TinyLlama-1.1B-Chat-v1.0" - 1.1B params, Good balance (1.2GB VRAM)
-        3. "stabilityai/stablelm-2-1_6b" - 1.6B params, Very good (1.8GB VRAM)
-        4. "microsoft/DialoGPT-medium" - 350M params, Lightweight fallback (400MB VRAM)
-        
-        Supports: Q&A, Step-by-step instructions, Future multimodal capabilities
+        Supports: Q&A, Step-by-step instructions, SOP generation
         """
         try:
             # Check if CUDA is available and set device
             device = 0 if torch.cuda.is_available() else -1
             device_name = "GPU (CUDA)" if device == 0 else "CPU"
             
-            # Determine model size for display
-            model_sizes = {
-                "microsoft/phi-2": "2.7B params (~2.5GB)",
-                "TinyLlama/TinyLlama-1.1B-Chat-v1.0": "1.1B params (~1.2GB)",
-                "stabilityai/stablelm-2-1_6b": "1.6B params (~1.8GB)",
-                "microsoft/DialoGPT-medium": "350M params (~400MB)"
-            }
-            model_size = model_sizes.get(model_name, "Unknown size")
-            
-            print(f"🚀 Loading Advanced Query Engine on: {device_name}")
-            print(f"📦 Model: {model_name}")
-            print(f"   Size: {model_size} - Optimized for high-quality answers")
+            print(f"🚀 Loading Phi-2 Query Engine on: {device_name}")
+            print(f"📦 Model: {model_name} (2.7B params)")
+            print(f"   Size: ~2.5GB VRAM - Optimized for high-quality answers")
             
             if torch.cuda.is_available():
                 print(f"   GPU: {torch.cuda.get_device_name(0)}")
                 print(f"   GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
-                print(f"   Ready for multimodal extensions")
             
-            # Initialize advanced text generation pipeline with optimized settings
+            # Initialize Phi-2 text generation pipeline with optimized settings
             dtype = torch.float16 if torch.cuda.is_available() else torch.float32
             
-            # Special handling for Phi-2 and other instruction-tuned models
-            if "phi-2" in model_name.lower():
-                # Phi-2 specific optimizations
-                self.generator = pipeline(
-                    "text-generation",
-                    model=model_name,
-                    tokenizer=model_name,
-                    device=device,
-                    max_length=2048,
-                    do_sample=True,
-                    temperature=0.7,  # Lower for Phi-2 (more focused)
-                    top_p=0.95,
-                    repetition_penalty=1.15,
-                    model_kwargs={"torch_dtype": dtype, "trust_remote_code": True}
-                )
-            elif "tinyllama" in model_name.lower():
-                # TinyLlama chat optimizations
-                self.generator = pipeline(
-                    "text-generation",
-                    model=model_name,
-                    tokenizer=model_name,
-                    device=device,
-                    max_length=2048,
-                    do_sample=True,
-                    temperature=0.75,
-                    top_p=0.9,
-                    repetition_penalty=1.1,
-                    model_kwargs={"torch_dtype": dtype}
-                )
-            elif "stablelm" in model_name.lower():
-                # StableLM optimizations
-                self.generator = pipeline(
-                    "text-generation",
-                    model=model_name,
-                    tokenizer=model_name,
-                    device=device,
-                    max_length=2048,
-                    do_sample=True,
-                    temperature=0.8,
-                    top_p=0.9,
-                    repetition_penalty=1.2,
-                    model_kwargs={"torch_dtype": dtype, "trust_remote_code": True}
-                )
-            else:
-                # Default/DialoGPT configuration
-                self.generator = pipeline(
-                    "text-generation",
-                    model=model_name,
-                    tokenizer=model_name,
-                    device=device,
-                    max_length=2048,
-                    do_sample=True,
-                    temperature=0.8,
-                    top_p=0.9,
-                    repetition_penalty=1.1,
-                    pad_token_id=50256,
-                    model_kwargs={"dtype": dtype}
-                )
+            # Phi-2 specific optimizations
+            self.generator = pipeline(
+                "text-generation",
+                model=model_name,
+                tokenizer=model_name,
+                device=device,
+                max_length=2048,
+                do_sample=True,
+                temperature=0.7,  # Optimized for Phi-2
+                top_p=0.95,
+                repetition_penalty=1.15,
+                model_kwargs={"torch_dtype": dtype, "trust_remote_code": True}
+            )
             
             self.model_loaded = True
             self.model_name = model_name
-            print(f"✅ Advanced Query Engine loaded successfully")
+            print(f"✅ Phi-2 Query Engine loaded successfully")
             print(f"   Features: Q&A, Step-by-step instructions, SOP generation ready")
         except Exception as e:
-            print(f"❌ Error loading model: {e}")
-            print("   Falling back to CPU or smaller model...")
-            try:
-                # Fallback to CPU with smaller model
-                fallback_model = "microsoft/DialoGPT-medium"
-                print(f"   Attempting fallback to {fallback_model} on CPU...")
-                self.generator = pipeline(
-                    "text-generation",
-                    model=fallback_model,
-                    tokenizer=fallback_model,
-                    device=-1,
-                    max_length=2048,
-                    do_sample=True,
-                    temperature=0.8,
-                    top_p=0.9,
-                    repetition_penalty=1.1,
-                    pad_token_id=50256,
-                    model_kwargs={"dtype": torch.float32}
-                )
-                self.model_loaded = True
-                self.model_name = fallback_model
-                print(f"✅ Advanced Query Engine loaded on CPU with fallback model")
-            except Exception as e2:
-                print(f"❌ CPU fallback also failed: {e2}")
-                self.generator = None
-                self.model_loaded = False
-                self.model_name = None
+            print(f"❌ Error loading Phi-2: {e}")
+            print("   System will use document extraction fallback")
+            self.generator = None
+            self.model_loaded = False
+            self.model_name = None
     
     def generate_answer(self, query: str, context_docs: List[Document], 
                        max_context_length: int = 3500) -> Dict[str, Any]:
@@ -199,32 +117,33 @@ class QueryEngine:
             return "standard_qa"
     
     def _generate_standard_answer(self, query: str, context: str) -> str:
-        """Generate standard Q&A response"""
-        prompt = f"""Based on the SOP documentation below, provide a comprehensive and accurate answer.
+        """Generate standard Q&A response with Phi-2 optimized prompt"""
+        # Phi-2 works better with clear, instruction-style prompts
+        prompt = f"""Instruct: Answer the following question based on the provided documentation. Be detailed and comprehensive.
 
-SOP Documentation:
+Documentation:
 {context}
 
 Question: {query}
 
-Detailed Answer:"""
+Output:"""
         
-        return self._generate_response(prompt, temperature=0.7, max_tokens=300)
+        return self._generate_response(prompt, temperature=0.7, max_tokens=400)
     
     def _generate_step_by_step_instructions(self, query: str, context: str) -> str:
-        """Generate detailed step-by-step instructions"""
-        prompt = f"""Based on the SOP documentation, create detailed step-by-step instructions for the following request.
+        """Generate detailed step-by-step instructions with Phi-2"""
+        prompt = f"""Instruct: Create detailed step-by-step instructions based on the documentation.
 
-SOP Documentation:
+Documentation:
 {context}
 
 Request: {query}
 
-Step-by-Step Instructions:
+Output: Provide clear numbered steps.
 
 1."""
         
-        response = self._generate_response(prompt, temperature=0.8, max_tokens=400)
+        response = self._generate_response(prompt, temperature=0.7, max_tokens=500)
         
         # Ensure proper step formatting
         if not response.startswith("1."):
@@ -250,8 +169,9 @@ Purpose:"""
         return self._generate_response(prompt, temperature=0.9, max_tokens=500)
     
     def _generate_response(self, prompt: str, temperature: float = 0.7, max_tokens: int = 300) -> str:
-        """Core response generation with error handling and smart fallback"""
+        """Core response generation with Phi-2 optimized settings"""
         try:
+            # Generate with Phi-2 optimized parameters
             response = self.generator(
                 prompt,
                 max_new_tokens=max_tokens,
@@ -260,26 +180,27 @@ Purpose:"""
                 do_sample=True,
                 temperature=temperature,
                 top_p=0.9,
-                repetition_penalty=1.1,
-                pad_token_id=50256
+                repetition_penalty=1.15,
+                eos_token_id=self.generator.tokenizer.eos_token_id,
+                pad_token_id=self.generator.tokenizer.pad_token_id if self.generator.tokenizer.pad_token_id is not None else self.generator.tokenizer.eos_token_id
             )
             
             # Extract generated text
             full_text = response[0]['generated_text']
             generated_part = full_text[len(prompt):].strip()
             
-            # Clean and format response
+            # Clean and format response (but don't reject if short - Phi-2 is good at concise answers)
             cleaned_response = self._clean_and_format_response(generated_part)
             
-            # If response is too short or empty, use document-based extraction
-            if not cleaned_response or len(cleaned_response.split()) < 10:
-                print("Generated response too short, using document extraction")
+            # Only fallback if truly empty or error
+            if not cleaned_response or len(cleaned_response.strip()) < 5:
+                print("⚠️ Generated response empty, using document extraction")
                 return self._extract_from_context(prompt)
             
             return cleaned_response
             
         except Exception as e:
-            print(f"Error generating response: {e}")
+            print(f"❌ Error generating response: {e}")
             return self._extract_from_context(prompt)
     
     def _extract_from_context(self, prompt: str) -> str:
