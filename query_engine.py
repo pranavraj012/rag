@@ -40,7 +40,8 @@ class QueryEngine:
                 temperature=0.7,  # Optimized for Phi-2
                 top_p=0.95,
                 repetition_penalty=1.15,
-                model_kwargs={"torch_dtype": dtype, "trust_remote_code": True}
+                trust_remote_code=True,
+                model_kwargs={"torch_dtype": dtype}
             )
             
             self.model_loaded = True
