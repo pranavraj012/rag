@@ -60,74 +60,34 @@ streamlit run app.py
 
 4. **Ask questions** about your SOPs!
 
-## 💾 Models
+## 💾 Model
 
-### Recommended Language Models (1B+ params)
+The system uses **Microsoft Phi-2** (2.7B parameters) for high-quality answer generation:
 
-The system now supports high-quality 1B+ parameter models for better answers:
-
-#### **Phi-2 (Recommended)** ⭐
 - **Size:** 2.7B parameters (~2.5GB VRAM)
 - **Quality:** ⭐⭐⭐⭐⭐ Excellent
-- **Best for:** Production-quality answers, detailed explanations
-- **Works on:** GTX 1650 4GB and up
+- **Optimized for:** GTX 1650 4GB and up
+- **Features:** Q&A, Step-by-step instructions, detailed explanations
 
-#### **TinyLlama-1.1B-Chat** 💨
-- **Size:** 1.1B parameters (~1.2GB VRAM)
-- **Quality:** ⭐⭐⭐⭐ Very Good  
-- **Best for:** Fast responses, low memory usage
-- **Works on:** Any GPU with 2GB+ VRAM
+### First-Time Setup
 
-#### **StableLM-2-1.6B** ⚖️
-- **Size:** 1.6B parameters (~1.8GB VRAM)
-- **Quality:** ⭐⭐⭐⭐ Excellent
-- **Best for:** Balanced performance
-- **Works on:** GTX 1650 4GB and up
-
-#### **DialoGPT-medium** 🪶
-- **Size:** 350M parameters (~400MB VRAM)
-- **Quality:** ⭐⭐⭐ Good
-- **Best for:** Low memory systems, CPU fallback
-- **Works on:** Any system
-
-### Changing Models
-
-Edit `.env` file and set your preferred model:
-```bash
-# Best quality (recommended)
-LLM_MODEL=microsoft/phi-2
-
-# Fastest
-LLM_MODEL=TinyLlama/TinyLlama-1.1B-Chat-v1.0
-
-# Lightweight
-LLM_MODEL=microsoft/DialoGPT-medium
-```
-
-See [MODEL_GUIDE.md](MODEL_GUIDE.md) for detailed comparison and recommendations.
-
-### Download Information
-
-Models are automatically downloaded on first run:
-- **Phi-2:** ~5.2GB download
-- **TinyLlama:** ~2.2GB download
-- **StableLM-2:** ~3.2GB download
-- **DialoGPT:** ~400MB download
-- **Embeddings (all-MiniLM-L6-v2):** ~80MB
-
-Models are cached in: `~/.cache/huggingface/`
+On first run, Phi-2 will be downloaded (~5.2GB, one-time):
+- Download time: 5-10 minutes (depending on connection)
+- Cached at: `~/.cache/huggingface/hub/`
+- Loading time: 5-8 seconds (subsequent runs)
 
 ## 🖥️ GPU Support
 
 ### Tested Configurations:
-- **GTX 1650 (4GB)**: ✅ Works perfectly
+- **GTX 1650 (4GB)**: ✅ Works perfectly with Phi-2
 - **RTX 4060 (8GB)**: ✅ Excellent performance
 - **RTX 3070/4070+**: ✅ Optimal performance
 
 ### Performance:
-- **Model Loading**: ~5 seconds on GPU vs ~20+ seconds on CPU
-- **Query Processing**: ~2-3 seconds on GPU vs ~10+ seconds on CPU
-- **VRAM Usage**: ~2-3GB (leaves room for other applications)
+- **Model Loading**: ~5 seconds on GPU
+- **Query Processing**: ~3-5 seconds per query
+- **VRAM Usage**: ~2.5GB (Phi-2)
+- **Leaves room**: ~1.5GB free for other applications
 
 ## 📁 Project Structure
 
@@ -158,13 +118,14 @@ EMBEDDING_MODEL=all-MiniLM-L6-v2
 
 ## 🧪 Testing
 
-Run the comprehensive test to verify everything works:
+Run the quick test to verify everything works:
 ```bash
-python tests/test_advanced.py
+python test_phi2.py
 ```
 
-Or run a basic functionality test:
+Or run comprehensive tests:
 ```bash
+python tests/test_advanced.py
 python tests/final_test.py
 ```
 
