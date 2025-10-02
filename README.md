@@ -157,3 +157,20 @@ python -c "import torch; print('CUDA:', torch.cuda.is_available())"
 ### Model Download Issues:
 - Check internet connection
 - Manually clear cache: `rm -rf ~/.cache/huggingface/`
+
+### Duplicate Documents in Search Results:
+If you're getting the same content multiple times:
+```bash
+# Check for duplicates
+python check_vector_store.py
+
+# Rebuild vector store (removes all duplicates)
+python rebuild_vector_store.py
+```
+
+**Note:** Always use `rebuild_vector_store.py` when re-uploading documents to avoid duplicates.
+
+### Low Confidence Scores:
+- Ensure no duplicate chunks (use `rebuild_vector_store.py`)
+- Check if query matches document content well
+- Confidence is color-coded: 🟢 High (≥75%), 🟡 Medium (50-74%), 🔴 Low (<50%)
